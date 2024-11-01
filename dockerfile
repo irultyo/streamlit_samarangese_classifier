@@ -1,7 +1,7 @@
 # Stage 1: Build environment
-FROM python:3.12-slim AS builder
+FROM python:3.10-slim AS builder
 
-# Install curl and uv
+# Install curl and other necessary tools
 RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -13,18 +13,15 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 WORKDIR /app
 
 # Copy project files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 COPY app.py ./
-COPY model.h5 ./
 
-# Create a virtual environment and install dependencies using uv
+# Create a virtual environment and sync dependencies using uv
 RUN ~/.cargo/bin/uv venv /app/venv
-RUN ~/.cargo/bin/uv add \
-    streamlit \
-    pillow \
-    opencv-python-headless \
-    tensorflow \
-    numpy
+RUN ~/.cargo/bin/uv sync \
+    -p pyproject.toml \
+    -f uv.lock \
+    --python /app/venv/bin/python
 
 # Stage 2: Production image using distroless
 FROM gcr.io/distroless/python3-debian12
@@ -33,7 +30,7 @@ FROM gcr.io/distroless/python3-debian12
 COPY --from=builder /app/venv /venv
 
 # Copy application files
-COPY --from=builder /app/streamlit_app.py /app/streamlit_app.py
+COPY --from=builder /app/app.py /app/app.py
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -44,4 +41,4 @@ ENV PYTHONUNBUFFERED=1 \
 EXPOSE 5003
 
 # Set the entrypoint to run the Streamlit app
-ENTRYPOINT ["streamlit", "run", "/app/streamlit_app.py", "--server.port=5003", "--server.address=0.0.0.0"]
+ENTRYPOINT ["streamlit", "run", "/app/app.py", "--server.port=5003", "--server.address=0.0.0.0"]
