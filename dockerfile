@@ -14,7 +14,8 @@ WORKDIR /app
 
 # Copy project files
 COPY pyproject.toml ./
-COPY streamlit_app.py ./
+COPY app.py ./
+COPY model.h5 ./
 
 # Create a virtual environment and install dependencies using uv
 RUN ~/.cargo/bin/uv venv /app/venv
